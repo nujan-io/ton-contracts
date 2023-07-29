@@ -1,0 +1,71 @@
+import { Blockchain, SandboxContract } from '@ton-community/sandbox';
+import { Cell, toNano } from 'ton-core';
+import { CounterContract } from './CounterContract';
+
+describe('CounterContract', () => {
+  let code: Cell;
+
+  beforeAll(async () => {
+    code = compile('main.fc');
+  });
+
+  let blockchain: Blockchain;
+  let counterContract: SandboxContract<CounterContract>;
+
+  beforeEach(async () => {
+    blockchain = await Blockchain.create();
+
+    counterContract = blockchain.openContract(
+      CounterContract.createFromConfig(
+        {
+          id: 0,
+          counter: 0,
+        },
+        code
+      )
+    );
+
+    const deployer = await blockchain.treasury('deployer');
+
+    const deployResult = await counterContract.sendDeploy(
+      deployer.getSender(),
+      toNano('0.05')
+    );
+  });
+
+  it('should deploy', async () => {
+    // the check is done inside beforeEach
+    // blockchain and counterContract are ready to use
+  });
+
+  it('should increase counter', async () => {
+    const increaseTimes = 3;
+    for (let i = 0; i < increaseTimes; i++) {
+      console.log('increase' + (i + 1 / increaseTimes));
+
+      const increaser = await blockchain.treasury('increaser' + i);
+
+      const counterBefore = await counterContract.getCounter();
+
+      console.log('counter before increasing', counterBefore);
+
+      const increaseBy = Math.floor(Math.random() * 100);
+
+      console.log('increasing by', increaseBy);
+
+      const increaseResult = await counterContract.sendIncrease(
+        increaser.getSender(),
+        {
+          increaseBy,
+          value: toNano('0.05'),
+        }
+      );
+
+      const counterAfter = await counterContract.getCounter();
+
+      console.log('counter after increasing', counterAfter);
+
+      expect(counterAfter).toBe(counterBefore + increaseBy);
+    }
+  });
+});
